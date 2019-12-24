@@ -6,27 +6,32 @@
 // Third Edition (C++)" by Clifford A. Shaffer.
 // Source code Copyright (C) 2007-2011 by Clifford A. Shaffer.
 
+//Ivan: Ivan read this document, did not edit Ryusei's functions/variables. Added comments to suggest to do nexts. Ivan is still reading all the code and will edit the code once all the code and requirements are memorized.
 #include "list.h"
 #include "link.h"
 #include <iostream>
+
 #include <vector>
 #include <set>
-#include <math.h>
+#include <math.h> //Ivan: I would like to politely add that "8.	You are not allowed to use any C/C++ math libraries"
 
 // Linked list implementation
-template <typename E> class LList: public List<E> {
+template <typename E> 
+class LList: public List<E> {
 private:
   Link<E>* head; // Pointer to list header
   Link<E>* tail; // Pointer to last element
   Link<E>* curr; // Access to current element
 
   int cnt; // Size of list
-  int sum; // sum of elements
-  double pre_SD; // sum of (x - aveX)*(x - aveX)
-  std::set<E> unique; //unique elements
-  std::vector<E> total;
+  int sum; // sum of elements //Ivan: new
 
-  void init() { // Initialization helper method
+  double pre_SD; // sum of (x - aveX)*(x - aveX) //Ivan: so this is the numerator of the variance
+
+  std::set<E> unique; //unique elements //for submitting the set of unique elements when calling std::set unique_set() {}
+  std::vector<E> total; //Ivan: new (compared to source file, this was newly added by Ryusei)
+
+  void init() { // Initialization helper method //note has issue of empty head
     curr = tail = head = new Link<E>;
     cnt = 0;
     sum = 0;
@@ -38,20 +43,24 @@ private:
         head = head->next;
         delete curr;
       }
-    unique.clear();
-    total.clear();
+    unique.clear(); //Ivan: new
+    total.clear(); //Ivan: new
   }
 
-  struct el_num{
+
+  //Ivan: el_num as in el numero? What is this for? Also, never had seen a struct inside a class like this before. should be above the class. 
+  //Why is the struct instantiated inside the class not inside the constructor?
+  //
+  struct el_num{ 
       std::vector<E> element;
-      int count =0;
+      int count = 0;
   };
   el_num count_el;
 
   /********************************
    * here is some problem
    */
-  void max_count(E target){
+  void max_count(E target){ //Ivan: what is this supposed to do?
       for(E s: unique){
           if(search(s).size() == count_el.count){
               count_el.element.push_back(s);
@@ -62,11 +71,11 @@ private:
           }
       }
   }
-  void total_sort(){
+  void total_sort(){//Ivan: this might be worse than using inserting into a vector or keeping track of the max and min by a simple comparison whenever something is inserted. Such comparison can even be skipped if we know new element is not unique.
       sort(total.begin(), total.end());
   }
 
-  void pre_SD_sum(){
+  void pre_SD_sum(){ //Ivan: why not go stread to sd? also pow() is not allowed
       pre_SD = 0;
       for(E v: total) {
           pre_SD += pow(v - this->get_mean(),2.0);
@@ -81,16 +90,30 @@ public:
     removeall(); // Destructor
   }
 
+  //Ivan: we lost the print() of list. While such is not required, I might need to import it from my llist.h later for dev reasons i.e. checking if nothing went wrong. 
+  void clear() { //Ivan: imported this function from original llist.h to override the virtual clear() in abstract class Link<E> so Visual Studios would not refuse to compile LList because it is a virtual class
+	  removeall();
+	  init();
+  }
   //1.append: append new data from the end
   void append(const E& it) { // Append "it" to list
-      tail = tail->next = new Link<E>(it, NULL);
+      /*current =*/         tail = tail->next = new Link<E>(it, NULL);             //Ivan: might as well as add current too?
       cnt++;
       sum += it;
-      total.push_back(it);
+      total.push_back(it); //Ivan: wait, why does total exist at the same time as the linked list? Also, vector goes out of bounds
       unique.insert(it);
       total_sort();
       max_count(it);
       pre_SD_sum();
+  }
+
+  // Insert "it" at current position (used in append) //Ivan: insert() is unchanged from source
+  void insert(const E& it) {
+	  std::cout << "Its in" << std::endl;
+
+	  curr->next = new Link<E>(it, curr->next);
+	  if (tail == curr) tail = curr->next; // New tail
+	  cnt++;
   }
 
   //2, Remove and return current element
@@ -132,17 +155,21 @@ public:
               this->next();
           }
       }
-      return result;
+      return result; //Ivan: does this return a destroyed, out of scope vector? 
+	  //Also, the question does not request all the occurances, just the index location of the first occurance. So if you are going this approach, you can return a std::pair pairname(index location, frequency count)
+	  //but the ideal solution is to just store values in std::pairs of (value, occurance) anyways?
   }
   // 6. array index operator, []: access each unique element through an index:
   // overload the array index operator ([]) so that the ith data element in an instance of your data object,
   // db can be accessed like db[i]
   std::set<int> operator[](int pos){
       auto itr = unique.begin();
-      for(int i = 0; i < pos; ++i)
+      for(int i = 0; i < pos; ++i)//Should "<" be here or should it be "<="? Usually when I ask for set[0], I want position 0, but this here would stop at i < 0//or is this a response to the empty head paradoxes?
           ++itr;
       return itr;
-  }
+  }//Ivan:: note to self, in the system I am thinking of, would you actually do ith element = index or index * occurance of each index??
+
+  
 
   //7. length_unique: number of unique elements in your data object
   int length_unique() const {
@@ -151,6 +178,10 @@ public:
   // 8, length_total: total number of elements in your data object
   int length_total() const {
       return cnt;
+  }
+  
+  int length() const {//virtual function length() from Link<E> must be overriden. deleting length() here will result in Visual Studios refusing to compile for LList<E> having un-overriden functions
+	  return cnt; //size of linked list
   }
   //9. unique: return all the unique elements as an std::set
   std::set<E> unique_set() const {
@@ -182,20 +213,13 @@ public:
   E get_min(){
       return total.front();
   }
-  // 10.6 get_max: returns the maximum data item in the current entire data set
+  // 10.6 get_max: returns the maximum data item in the current entire data set //Ivan: wait, is it sorted ascending?
   E get_max(){
       return total.back();
   }
 
 
-  // Insert "it" at current position (used in append)
-  void insert(const E& it) {
-    std::cout << "Its in" << std::endl;
-
-    curr->next = new Link<E>(it, curr->next);
-    if (tail == curr) tail = curr->next; // New tail
-    cnt++;
-  }
+  
 
   // Place curr at list start (used in search)
   void moveToStart() {
